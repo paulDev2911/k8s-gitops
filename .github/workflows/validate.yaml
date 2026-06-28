@@ -1,0 +1,47 @@
+---
+name: Validate
+
+on:
+  pull_request:
+    paths:
+      - "kubernetes/**"
+  push:
+    branches:
+      - main
+    paths:
+      - "kubernetes/**"
+
+jobs:
+  kustomize-build:
+    name: Kustomize Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Kustomize
+        uses: imranismail/setup-kustomize@v2
+
+      - name: Build all app kustomizations
+        run: |
+          set -euo pipefail
+          for dir in $(find kubernetes/apps -maxdepth 1 -mindepth 1 -type d); do
+            echo "Building $dir ..."
+            kustomize build "$dir" > /dev/null
+          done
+
+      - name: Build cluster kustomization
+        run: kustomize build kubernetes/flux/cluster > /dev/null
+
+  flux-check:
+    name: Flux Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flux CLI
+        uses: fluxcd/flux2/action@main
+
+      - name: Flux pre-flight check
+        run: flux check --pre
